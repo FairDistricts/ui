@@ -9,6 +9,8 @@ provide people with perspective both on how their opinions are not being
 represented, and how hostile gerrymandering is to their ability to do something
 about that lack of representation.
 
+![screenshot](/screenshot.png?raw=true "UI screenshot")
+
 Installation
 --------------
 
@@ -78,3 +80,18 @@ You'll see output like:
 Open your browser, and take a look at http://localhost:5006/mapping - have fun.
 
 Beyond bokeh's built-in server, there are many other ways to deploy.  These are documented at http://bokeh.pydata.org/en/latest/docs/user_guide/server.html
+
+
+TODO
+----
+
+* Docker image with mounted data dir
+* Dataset discovery (rather than hardcoding)
+* Additional widgets and metrics 
+  * efficiency gap
+  * compactness
+  * per-district wasted votes
+  * spatially plot which rep voted for what (to show in context of population)
+* Tie in legislative data from https://github.com/FairDistricts/data-etl
+* Add VTD-level election outcomes, to be displayed with or in place of census data
+* Document user interactions
