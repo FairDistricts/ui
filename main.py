@@ -13,11 +13,12 @@ from cartopy import crs
 import requests
 
 from bokeh.models import WMTSTileSource, TextInput, Select
-from bokeh import curdoc
+from bokeh.plotting import curdoc
+from bokeh.layouts import layout
 from holoviews.operation.datashader import datashade
 
 # Get renderer and set global display options
-renderer = hv.extension('bokeh')
+renderer = hv.renderer('bokeh').instance(mode='server')
 hv.opts("RGB [width=1200 height=682 xaxis=None yaxis=None show_grid=False]")
 hv.opts("Polygons (fill_color=None line_width=1.5) [apply_ranges=False tools=['tap']]")
 hv.opts("Points [apply_ranges=False] WMTS (alpha=0.5)")
@@ -27,7 +28,7 @@ df = dd.io.parquet.read_parquet('data/census.snappy.parq').persist()
 census_points = gv.Points(df, kdims=['easting', 'northing'], vdims=['race'])
 
 # Declare colormapping
-color_key = {'w':'blue',  'b':'green', 'a':'red',   'h':'orange',   'o':'saddlebrown'}
+color_key = {'w':'white',  'b':'green', 'a':'red',   'h':'orange',   'o':'saddlebrown'}
 races     = {'w':'White', 'b':'Black', 'a':'Asian', 'h':'Hispanic', 'o':'Other'}
 color_points = hv.NdOverlay({races[k]: gv.Points([0,0], crs=crs.PlateCarree())(style=dict(color=v))
                              for k, v in color_key.items()})
@@ -42,6 +43,13 @@ shapefile = {'state_house': 'cb_2016_48_sldl_500k',
              'state_senate': 'cb_2016_48_sldu_500k',
              'us_house': 'cb_2015_us_cd114_5m',
 }
+
+def load_district_shapefile(id):
+    shape_path = 'data/{0}/{0}.shp'.format(shapefile[id])
+    districts = gv.Shape.from_shapefile(shape_path, crs=crs.PlateCarree())
+    districts = gv.operation.project_shape(districts)
+    districts = hv.Polygons([gv.util.geom_to_array(dist.data) for dist in districts])
+    return districts
 
 # Define tile source
 tile_url = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{Z}/{Y}/{X}.jpg'
@@ -94,15 +102,12 @@ def address_district_lookup(address, district_type, api_key):
 # Define valid function for FunctionHandler
 # when deploying as script, simply attach to curdoc
 def modify_doc(doc):
-    # Create HoloViews plot and attach the document
-    hvplot = tiles * shaded * color_points * districts
-
-    def set_bounds():
+    def set_bounds(attr, old, new):
         """Upon specification of an address, or change of district type, re-zoom to show
         the district applicable to the address provided"""
         pass
 
-    def set_district_type():
+    def district_type_update(attr, old, new):
         """Choose between state_house, state_senate, US house districts to display"""
         pass
 
@@ -113,27 +118,24 @@ def modify_doc(doc):
         """
         pass
 
+    address_input = TextInput(title='Address')
+    address_input.on_change('value', set_bounds)
+    district_type = Select(title='District type', options=[
+        ('us_house', "US House"),
+        ('state_house', "State House"),
+        ('state_senate', "State Senate"),
+    ], value='us_house')
+    address_input.on_change('value', district_type_update)
 
-    # Create a slider and play buttons
-    def animate_update():
-        year = slider.value + 0.2
-        if year > end:
-            year = start
-        slider.value = year
+    def get_plot():
+        # Combine the holoviews plot and widgets in a layout
+        return tiles * shaded * color_points * load_district_shapefile(district_type.value)
 
-    def slider_update(attrname, old, new):
-        # Notify the HoloViews stream of the slider update
-        stream.event(phase=new)
-
-    address_input = TextInput(title='Address', callback=self.set_bounds)
-    start, end = 0, np.pi*2
-    slider = Slider(start=start, end=end, value=start, step=0.2, title="Phase")
-    slider.on_change('value', slider_update)
-
-    # Combine the holoviews plot and widgets in a layout
+    # Create HoloViews plot and attach the document
+    hvplot = get_plot()
     plot = layout([
-    [hvplot.state],
-    [slider, button]], sizing_mode='fixed')
+    [renderer.get_plot(hvplot, doc).state],
+    [address_input, district_type]], sizing_mode='fixed')
 
     doc.add_root(plot)
     return doc
