@@ -32,7 +32,8 @@ anaconda.org:
 conda install -n mapping -c ioam -c conda-forge notebook holoviews geoviews datashader
 ```
 
-Activate this environment, so that the Python environment we've created is the one we'll use to run the bokeh web app:
+Activate this environment, so that the Python environment we've created is the
+one we'll use to run the bokeh web app:
 
 ```
 source activate mapping
@@ -42,6 +43,11 @@ Download the data from:
 
 * http://s3.amazonaws.com/datashader-data/census.snappy.parq.zip
 * http://www2.census.gov/geo/tiger/GENZ2015/shp/cb_2015_us_cd114_5m.zip
+
+The demographic data in the first link comes from
+http://demographics.coopercenter.org/racial-dot-map/ and was captured in a
+parquet file using instructions at
+https://github.com/bokeh/datashader/issues/129
 
 Extract it into a folder named ``data`` at the same level as main.py from this
 github repo. You don't need to follow this path structure exactly, but if you
@@ -61,7 +67,8 @@ _common_metadata _metadata        part.0.parquet   part.1.parquet   part.2.parqu
 Running the app
 -----------------
 
-Bokeh includes a standalone server.  For simplicity and self-containment of this repository, that's what we'll demonstrate.
+Bokeh includes a standalone server. For simplicity and self-containment of this
+repository, that's what we'll demonstrate.
 
 In the folder containing main.py, run
 
@@ -79,7 +86,8 @@ You'll see output like:
 
 Open your browser, and take a look at http://localhost:5006/mapping - have fun.
 
-Beyond bokeh's built-in server, there are many other ways to deploy.  These are documented at http://bokeh.pydata.org/en/latest/docs/user_guide/server.html
+Beyond bokeh's built-in server, there are many other ways to deploy. These are
+documented at http://bokeh.pydata.org/en/latest/docs/user_guide/server.html
 
 
 TODO
@@ -95,3 +103,9 @@ TODO
 * Tie in legislative data from https://github.com/FairDistricts/data-etl
 * Add VTD-level election outcomes, to be displayed with or in place of census data
 * Document user interactions
+
+Credits
+--------
+
+This mapping app is based on prior work by Philipp Rudiger and Jim Bednar for
+demonstrating the capabilities of their holoviews and datashader libraries.
