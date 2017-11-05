@@ -12,7 +12,7 @@ import dask.dataframe as dd
 from cartopy import crs
 import requests
 
-from bokeh.models import WMTSTileSource, TextInput
+from bokeh.models import WMTSTileSource, TextInput, Select
 from bokeh import curdoc
 from holoviews.operation.datashader import datashade
 
@@ -98,6 +98,20 @@ def modify_doc(doc):
     hvplot = tiles * shaded * color_points * districts
 
     def set_bounds():
+        """Upon specification of an address, or change of district type, re-zoom to show
+        the district applicable to the address provided"""
+        pass
+
+    def set_district_type():
+        """Choose between state_house, state_senate, US house districts to display"""
+        pass
+
+    def set_district_on_click():
+        """Update any data in tables shown to user (perhaps in mouse-over)
+
+        This could also be selected numerically, for people who know their district by number
+        """
+        pass
 
 
     # Create a slider and play buttons
