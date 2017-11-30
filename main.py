@@ -3,8 +3,10 @@ import re
 
 import pandas as pd
 from sqlalchemy import create_engine
+import requests
 
-import numpy as np
+import param
+import parambokeh
 import holoviews as hv
 import geoviews as gv
 import datashader as ds
@@ -44,12 +46,6 @@ shapefile = {'state_house': 'cb_2016_48_sldl_500k',
              'us_house': 'cb_2015_us_cd114_5m',
 }
 
-def load_district_shapefile(id):
-    shape_path = 'data/{0}/{0}.shp'.format(shapefile[id])
-    districts = gv.Shape.from_shapefile(shape_path, crs=crs.PlateCarree())
-    districts = gv.operation.project_shape(districts)
-    districts = hv.Polygons([gv.util.geom_to_array(dist.data) for dist in districts])
-    return districts
 
 # Define tile source
 tile_url = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{Z}/{Y}/{X}.jpg'
@@ -101,43 +97,71 @@ def address_district_lookup(address, district_type, api_key):
 
 # Define valid function for FunctionHandler
 # when deploying as script, simply attach to curdoc
-def modify_doc(doc):
-    def set_bounds(attr, old, new):
-        """Upon specification of an address, or change of district type, re-zoom to show
-        the district applicable to the address provided"""
-        pass
+# def modify_doc(doc):
+#     def set_bounds(attr, old, new):
+#         """Upon specification of an address, or change of district type, re-zoom to show
+#         the district applicable to the address provided"""
+#         pass
 
-    def district_type_update(attr, old, new):
-        """Choose between state_house, state_senate, US house districts to display"""
-        pass
+#     def district_type_update(attr, old, new):
+#         """Choose between state_house, state_senate, US house districts to display"""
+#         pass
 
-    def set_district_on_click():
-        """Update any data in tables shown to user (perhaps in mouse-over)
+#     def set_district_on_click():
+#         """Update any data in tables shown to user (perhaps in mouse-over)
 
-        This could also be selected numerically, for people who know their district by number
-        """
-        pass
+#         This could also be selected numerically, for people who know their district by number
+#         """
+#         pass
 
-    address_input = TextInput(title='Address')
-    address_input.on_change('value', set_bounds)
-    district_type = Select(title='District type', options=[
-        ('us_house', "US House"),
-        ('state_house', "State House"),
-        ('state_senate', "State Senate"),
-    ], value='us_house')
-    address_input.on_change('value', district_type_update)
+#     address_input = TextInput(title='Address')
+#     address_input.on_change('value', set_bounds)
+#     district_type = Select(title='District type', options=[
+#         ('us_house', "US House"),
+#         ('state_house', "State House"),
+#         ('state_senate', "State Senate"),
+#     ], value='us_house')
+#     address_input.on_change('value', district_type_update)
 
-    def get_plot():
-        # Combine the holoviews plot and widgets in a layout
-        return tiles * shaded * color_points * load_district_shapefile(district_type.value)
+#     def get_plot():
+#         # Combine the holoviews plot and widgets in a layout
+#         return tiles * shaded * color_points * load_district_shapefile(district_type.value)
 
-    # Create HoloViews plot and attach the document
-    hvplot = get_plot()
-    plot = layout([
-    [renderer.get_plot(hvplot, doc).state],
-    [address_input, district_type]], sizing_mode='fixed')
+#     # Create HoloViews plot and attach the document
+#     hvplot = get_plot()
+#     plot = layout([
+#     [renderer.get_plot(hvplot, doc).state],
+#     [address_input, district_type]], sizing_mode='fixed')
 
-    doc.add_root(plot)
-    return doc
+#     doc.add_root(plot)
+#     return doc
 
-doc = modify_doc(curdoc())
+# doc = modify_doc(curdoc())
+
+
+def load_district_shapefile(id, **kwargs):
+    id = '_'.join([part.lower() for part in id.split()])
+    shape_path = 'data/{0}/{0}.shp'.format(shapefile[id])
+    districts = gv.Shape.from_shapefile(shape_path, crs=crs.PlateCarree())
+    districts = gv.operation.project_shape(districts)
+    districts = hv.Polygons([gv.util.geom_to_array(dist.data) for dist in districts])
+    return districts
+
+
+class DistrictExplorer(param.Parameterized):
+    district_type = param.ObjectSelector(objects=('US House', 'State House', 'State Senate'),
+                                         default='US House')
+    output = parambokeh.view.Plot()
+
+    def view(self, **kwargs):
+        districts = hv.DynamicMap(load_district_shapefile, kdims=['District type'], streams=[self])
+        return tiles * shaded * color_points * districts
+
+    def event(self, **kwargs):
+        if not self.output or any(k in kwargs for k in ['District type']):
+            self.output = hv.DynamicMap(self.view, streams=[self])
+        else:
+            super(DistrictExplorer, self).event(**kwargs)
+
+explorer = DistrictExplorer()
+parambokeh.Widgets(explorer, continuous_update=True, callback=explorer.event, on_init=True)
