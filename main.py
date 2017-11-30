@@ -20,10 +20,10 @@ from bokeh.layouts import layout
 from holoviews.operation.datashader import datashade
 
 # Get renderer and set global display options
-renderer = hv.renderer('bokeh').instance(mode='server')
 hv.opts("RGB [width=1200 height=682 xaxis=None yaxis=None show_grid=False]")
 hv.opts("Polygons (fill_color=None line_width=1.5) [apply_ranges=False tools=['tap']]")
 hv.opts("Points [apply_ranges=False] WMTS (alpha=0.5)")
+
 
 # Load census data
 df = dd.io.parquet.read_parquet('data/census.snappy.parq').persist()
@@ -76,11 +76,6 @@ def address_latlon_lookup(address, api_key):
     return location['lat'], location['lng']
 
 
-def get_district_boundaries(district_id):
-    pass
-
-
-
 def address_district_lookup(address, district_type, api_key):
     json_response = requests.get(
         'https://www.googleapis.com/civicinfo/v2/representatives?address={address}&key={api_key}'.format(
@@ -95,49 +90,6 @@ def address_district_lookup(address, district_type, api_key):
     # TODO: error handling for no matching RE (maybe due to different state expression)
     return district
 
-# Define valid function for FunctionHandler
-# when deploying as script, simply attach to curdoc
-# def modify_doc(doc):
-#     def set_bounds(attr, old, new):
-#         """Upon specification of an address, or change of district type, re-zoom to show
-#         the district applicable to the address provided"""
-#         pass
-
-#     def district_type_update(attr, old, new):
-#         """Choose between state_house, state_senate, US house districts to display"""
-#         pass
-
-#     def set_district_on_click():
-#         """Update any data in tables shown to user (perhaps in mouse-over)
-
-#         This could also be selected numerically, for people who know their district by number
-#         """
-#         pass
-
-#     address_input = TextInput(title='Address')
-#     address_input.on_change('value', set_bounds)
-#     district_type = Select(title='District type', options=[
-#         ('us_house', "US House"),
-#         ('state_house', "State House"),
-#         ('state_senate', "State Senate"),
-#     ], value='us_house')
-#     address_input.on_change('value', district_type_update)
-
-#     def get_plot():
-#         # Combine the holoviews plot and widgets in a layout
-#         return tiles * shaded * color_points * load_district_shapefile(district_type.value)
-
-#     # Create HoloViews plot and attach the document
-#     hvplot = get_plot()
-#     plot = layout([
-#     [renderer.get_plot(hvplot, doc).state],
-#     [address_input, district_type]], sizing_mode='fixed')
-
-#     doc.add_root(plot)
-#     return doc
-
-# doc = modify_doc(curdoc())
-
 
 def load_district_shapefile(id, **kwargs):
     id = '_'.join([part.lower() for part in id.split()])
@@ -148,20 +100,24 @@ def load_district_shapefile(id, **kwargs):
     return districts
 
 
-class DistrictExplorer(param.Parameterized):
+class DistrictExplorer(hv.streams.Stream):
     district_type = param.ObjectSelector(objects=('US House', 'State House', 'State Senate'),
                                          default='US House')
-    output = parambokeh.view.Plot()
 
-    def view(self, **kwargs):
-        districts = hv.DynamicMap(load_district_shapefile, kdims=['District type'], streams=[self])
+    def make_view(self, **kwargs):
+        districts = hv.DynamicMap(load_district_shapefile, kdims=['district_type'], streams=[self])
         return tiles * shaded * color_points * districts
 
-    def event(self, **kwargs):
-        if not self.output or any(k in kwargs for k in ['District type']):
-            self.output = hv.DynamicMap(self.view, streams=[self])
-        else:
-            super(DistrictExplorer, self).event(**kwargs)
+    # def event(self, **kwargs):
+    #     if not self.output or any(k in kwargs for k in ['District type']):
+    #         self.output = hv.DynamicMap(self.view, streams=[self])
+    #     else:
+    #         super(DistrictExplorer, self).event(**kwargs)
 
-explorer = DistrictExplorer()
-parambokeh.Widgets(explorer, continuous_update=True, callback=explorer.event, on_init=True)
+
+explorer = DistrictExplorer(name="District explorer")
+dmap = hv.DynamicMap(explorer.make_view, streams=[explorer])
+
+plot = hv.renderer('bokeh').instance(mode='server').get_plot(dmap)
+parambokeh.Widgets(explorer, continuous_update=True, callback=explorer.event,
+                   on_init=True, plots=[plot.state], mode='server')
