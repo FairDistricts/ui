@@ -21,7 +21,7 @@ Instructions are at https://conda.io/miniconda.html
 With a conda installation, create an environment with some prerequisites:
 
 ```
-conda create -n mapping python=3.6 bokeh pandas=0.19 fastparquet python-snappy sqlalchemy mysql-connector-python
+conda create -n mapping python=3.6 bokeh pandas fastparquet python-snappy sqlalchemy mysql-connector-python
 ```
 
 Not all of our prerequisites are available from the default software channels.
@@ -29,7 +29,7 @@ We get a few more things from the conda-forge and ioam organizations on
 anaconda.org:
 
 ```
-conda install -n mapping -c ioam -c conda-forge notebook holoviews geoviews datashader
+conda install -n mapping -c ioam -c conda-forge notebook holoviews geoviews datashader parambokeh
 ```
 
 Activate this environment, so that the Python environment we've created is the
